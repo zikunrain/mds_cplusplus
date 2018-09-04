@@ -34,6 +34,7 @@ double Entry::getDistance(Entry entry) {
     deltaSum += (entry.attrs[i] - attrs[i]) * (entry.attrs[i] - attrs[i]);
   }
   d = sqrt(deltaSum);
+  // cout << d << endl;
   return d;
 }
 
