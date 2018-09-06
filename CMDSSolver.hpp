@@ -3,6 +3,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <map>
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Eigenvalues>
@@ -63,7 +64,6 @@ CMDSSolver::CMDSSolver(MatrixXd matrixData, int nE) {
   cout << secondMaxEigenValueIndex << endl;
   // cout << D << endl;
 
-
   Eigen::Matrix< double, 2, 1> diagVector;
   diagVector << maxEigenValue, secondMaxEigenValue;
   Eigen::Matrix< double, 2, 2> diagM = diagVector.array().sqrt().matrix().asDiagonal();
@@ -79,4 +79,86 @@ CMDSSolver::CMDSSolver(MatrixXd matrixData, int nE) {
 
 double** CMDSSolver::getProjection() {
   return projection;
+}
+
+
+class NMDSSolver {
+  public:
+    NMDSSolver(MatrixXd matrixData, int nE);
+    double** getProjection( void );
+  
+  private:
+    double** projection;
+}
+
+NMDSSolver::NMDSSolver(MatrixXd matrixData, int nE) {
+  cout << "NMDSSolver has been created" << endl;
+  map <double, string> dbMapString;
+  for (int r = 0; r < nE; r++) {
+    for (int c = 0; c <= r; c++) {
+      double value = matrixData(r,c);
+      string rowStr = to_string(r);
+      string colStr = to_string(c);
+      ostringstream rowColStr;
+      rowColStr << rowStr << ',' << colStr;
+      if (hasKey(dbMapString, value)) {
+        string rowColStrPrev = dbMapString[value];
+        ostringstream rowColStrCur;
+        rowColStrCur << rowColStrPrev << ";" << rowColStr;
+        dbMapString.insert(pair<double, string>(value, rowColStrCur.str()));
+      } else {
+        dbMapString.insert(pair<double, string>(value, rowColStr.str()));
+      }
+    }
+  }
+
+  MatrixDbDY nMatrixData = MatrixXd::Zero(nE, nE);
+
+  map <double, string>::iterator iter;
+  iter = dbMapString.begin();
+  int order = 1;
+  while(iter != dbMapString.end()) {
+    string rowColStrs = iter->second;
+    cout << iter->first << endl;
+    istringstream in(rowColStrs);
+    string rowColStr;
+    int curOrder = order;
+    while (getline(in, rowColStr, ';')) {
+      // string to char
+      char rowColChar[rowColStr.length()];
+      int ichar, istr;
+      int row, col;
+      for (ichar = 0, istr = 0; istr < rowColStr.length(); istr++, ichar++) {
+        rowColChar[ichar] = rowColStr[istr];
+        if (rowColChar[ichar] == ',') { // comma
+          rowColChar[ichar] = '\0';
+          row = atoi(rowColChar);
+          cout << rowColChar << endl;
+          ichar = -1;
+        }
+      }
+      rowColChar[ichar] = '\0';
+      cout << rowColChar << endl;
+      col = atoi(rowColChar);
+      cout << row << " "<< col << " order: " << order << endl;
+
+      nMatrixData(row, col) = order;
+      nMatrixData(col, row) = order;
+      order++;
+    }
+
+    // cout << iter->first << " : " << iter->second << endl;
+    iter++;
+  }
+
+
+}
+
+bool hasKey(map <double, string> mymap, double key) {
+  map <double, string>::iterator it = mymap.find(key);  
+  if(it == mymap.end()){    
+    return false;    
+  } else {    
+    return true;    
+  }    
 }
