@@ -26,7 +26,7 @@ Type stringToNum(const string& str) {
 }
 
 vector<Entry> readcsv() {
-  ifstream fin("data/iris.csv");
+  ifstream fin("data/station.csv");
   string line;
   vector<Entry> entries;
   while (getline(fin, line)) {
@@ -40,7 +40,7 @@ vector<Entry> readcsv() {
       data = stringToNum<double>(field);
       flower.push_back(data);
     }
-    flower.pop_back();
+    // flower.pop_back();
     Entry entry(flower, cAttrs);
     entries.push_back(entry);
   }
@@ -63,22 +63,26 @@ int main() {
     }
   }
 
-  time2 = clock();
-  CMDSSolver cMDSSolver(matrixData, nE);
-  double** projection = cMDSSolver.getProjection();
+  NMDSSolver nMDSSolver(matrixData, nE);
+  MatrixXd tempResult = nMDSSolver.getTempMatrix();
+  // cout << tempResult << endl;
 
-  time3 = clock();
+  // time2 = clock();
+  // CMDSSolver cMDSSolver(matrixData, nE);
+  // double** projection = cMDSSolver.getProjection();
 
-  ofstream outFile;
-	outFile.open("data/data.csv", ios::out); // 打开模式可省略
-  for (int r = 0; r < nE; r++) {
-    outFile << projection[r][0] << ',' << projection[r][1] << endl;
-  }
-	outFile.close();
+  // time3 = clock();
 
-  time4 = clock();
-  cout << double(time2 - time1)/ CLOCKS_PER_SEC << "s" << endl;
-  cout << double(time3 - time2)/ CLOCKS_PER_SEC << "s" << endl;
-  cout << double(time4 - time3)/ CLOCKS_PER_SEC << "s" << endl;
+  // ofstream outFile;
+	// outFile.open("data/data.csv", ios::out); // 打开模式可省略
+  // for (int r = 0; r < nE; r++) {
+  //   outFile << projection[r][0] << ',' << projection[r][1] << endl;
+  // }
+	// outFile.close();
+
+  // time4 = clock();
+  // cout << double(time2 - time1)/ CLOCKS_PER_SEC << "s" << endl;
+  // cout << double(time3 - time2)/ CLOCKS_PER_SEC << "s" << endl;
+  // cout << double(time4 - time3)/ CLOCKS_PER_SEC << "s" << endl;
   return 0;
 }

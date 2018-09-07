@@ -4,9 +4,12 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cmath>
+// #include <random>
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Eigenvalues>
+#include <time.h>
 
 #define DBL_MIN -1.79769313486231570E+308
 
@@ -86,16 +89,21 @@ class NMDSSolver {
   public:
     NMDSSolver(MatrixXd matrixData, int nE);
     double** getProjection( void );
+    MatrixXd getTempMatrix( void );
+    bool hasKey(map <double, string> mymap, double key);
   
   private:
     double** projection;
-}
+    MatrixXd theltaMatrix;
+};
 
 NMDSSolver::NMDSSolver(MatrixXd matrixData, int nE) {
+  srand(time(0));
   cout << "NMDSSolver has been created" << endl;
+  // cout << "matrixData: " << endl << matrixData << endl;
   map <double, string> dbMapString;
-  for (int r = 0; r < nE; r++) {
-    for (int c = 0; c <= r; c++) {
+  for (int r = 1; r < nE; r++) {
+    for (int c = 0; c < r; c++) {
       double value = matrixData(r,c);
       string rowStr = to_string(r);
       string colStr = to_string(c);
@@ -104,22 +112,24 @@ NMDSSolver::NMDSSolver(MatrixXd matrixData, int nE) {
       if (hasKey(dbMapString, value)) {
         string rowColStrPrev = dbMapString[value];
         ostringstream rowColStrCur;
-        rowColStrCur << rowColStrPrev << ";" << rowColStr;
-        dbMapString.insert(pair<double, string>(value, rowColStrCur.str()));
+        rowColStrCur << rowColStrPrev << ";" << rowColStr.str();
+        // cout << "duplicate key: " << rowColStrCur.str() << endl;
+        dbMapString[value] = rowColStrCur.str();
       } else {
-        dbMapString.insert(pair<double, string>(value, rowColStr.str()));
+        dbMapString[value] = rowColStr.str();
       }
     }
   }
 
   MatrixDbDY nMatrixData = MatrixXd::Zero(nE, nE);
+  vector<pair<int , int>> orderedRowCol;
 
   map <double, string>::iterator iter;
   iter = dbMapString.begin();
   int order = 1;
   while(iter != dbMapString.end()) {
+    // cout << "checking dbmapstring: " << iter->first << '-' << iter->second << endl;
     string rowColStrs = iter->second;
-    cout << iter->first << endl;
     istringstream in(rowColStrs);
     string rowColStr;
     int curOrder = order;
@@ -133,28 +143,119 @@ NMDSSolver::NMDSSolver(MatrixXd matrixData, int nE) {
         if (rowColChar[ichar] == ',') { // comma
           rowColChar[ichar] = '\0';
           row = atoi(rowColChar);
-          cout << rowColChar << endl;
           ichar = -1;
         }
       }
       rowColChar[ichar] = '\0';
-      cout << rowColChar << endl;
       col = atoi(rowColChar);
-      cout << row << " "<< col << " order: " << order << endl;
 
-      nMatrixData(row, col) = order;
-      nMatrixData(col, row) = order;
+      nMatrixData(row, col) = curOrder;
+      nMatrixData(col, row) = curOrder;
+
+      pair<int, int> p(row, col);
+      orderedRowCol.push_back(p);
       order++;
     }
-
-    // cout << iter->first << " : " << iter->second << endl;
     iter++;
   }
+  theltaMatrix = nMatrixData;
 
+  // assign random configuration
+  MatrixDbDY conf(nE, 2);
+  for (int r = 0; r < nE; r++) {
+    conf(r, 0) = rand()%100/(double)101;
+    conf(r, 1) = rand()%100/(double)101;
+  }
 
+  
+  MatrixDbDY D = MatrixXd::Zero(nE, nE);
+  MatrixDbDY DHat = MatrixXd::Zero(nE, nE);
+  double stress;
+
+  for (int t = 0; t < 100; t++) {
+    // calculate d
+    double drc;
+    double sumDrc = 0.0, sumDrcSquare = 0.0;
+    for (int r = 1; r < nE; r++) {
+      for (int c = 0; c < r; c++) {
+        drc = sqrt((conf(r, 0) - conf(c, 0)) * (conf(r, 0) - conf(c, 0)) + (conf(r, 1) - conf(c, 1)) * (conf(r, 1) - conf(c, 1)));
+        double drcValue;
+        if (drc < 0.0001) {
+          drcValue = 0.01;
+        } else {
+          drcValue = drc;
+        }
+        D(r, c) = drcValue;
+        sumDrc += drcValue;
+        sumDrcSquare += drcValue * drcValue;
+      }
+    }
+
+    double avgDrc = sumDrc * 2 / (nE * (nE - 1));
+
+    // calculate dhat
+    for (int i = 1; i < orderedRowCol.size(); i++) {
+      int row = orderedRowCol[i].first;
+      int col = orderedRowCol[i].second;
+      int prevRow = orderedRowCol[i - 1].first;
+      int prevCol = orderedRowCol[i - 1].second;
+
+      if (D(prevRow, prevCol) > D(row, col)) {
+        double midean = (D(prevRow, prevCol) + D(row, col)) / 2.0;
+        DHat(prevRow, prevCol) = midean;
+        DHat(row, col) = midean;
+      } else {
+        DHat(row, col) = D(row, col);
+      }
+    }
+
+    double sumDiffSquare = 0.0;
+    for (int r = 1; r < nE; r++) {
+      for (int c = 0; c < r; c++) {
+        sumDiffSquare += (DHat(r, c) - D(r, c)) * (DHat(r, c) - D(r, c));
+      }
+    }
+    
+    stress = sqrt(sumDiffSquare / sumDrcSquare);
+    cout << " stress : " << stress << endl;
+
+    // if stress is larger than ...
+    for (int r = 0; r < nE; r++) {
+      double item0 = 0.0;
+      for (int c = 0; c < nE; c++) {
+        if (c != r) {
+          if (c > r) {
+            item0 += (1 - (DHat(c, r)/D(c, r))) * (conf(c, 0) - conf(r, 0));
+          } else {
+            item0 += (1 - (DHat(r, c)/D(r, c))) * (conf(c, 0) - conf(r, 0));
+          }
+        }
+      }
+      conf(r, 0) = conf(r, 0) + item0 * 0.4 / (nE - 1);
+
+      double item1 = 0.0;
+      for (int c = 0; c < nE; c++) {
+        if (c != r) {
+          if (c > r) {
+            item1 += (1 - (DHat(c, r)/D(c, r))) * (conf(c, 1) - conf(r, 1));
+          } else {
+            item1 += (1 - (DHat(r, c)/D(r, c))) * (conf(c, 1) - conf(r, 1));
+          }
+        }
+      }
+      conf(r, 1) = conf(r, 1) + item1 * 0.4 / (nE - 1);
+    }
+  }
+
+  cout << conf << endl << endl;
 }
 
-bool hasKey(map <double, string> mymap, double key) {
+MatrixXd NMDSSolver::getTempMatrix() {
+  return theltaMatrix;
+}
+
+
+bool NMDSSolver::hasKey(map <double, string> mymap, double key) {
   map <double, string>::iterator it = mymap.find(key);  
   if(it == mymap.end()){    
     return false;    
