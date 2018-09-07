@@ -9,7 +9,8 @@ double** projection = cMDSSolver.getProjection();
 
 ## Failure
 
-I tried to implement non-metric MDS. However, I failed. Thus, the nMDSSolver class in CMDSSolver.hpp does not work. The corresponding code that cannot work has been moved into another branch, namely, failure.  
+I tried to implement non-metric MDS. However, I failed. Thus, the nMDSSolver class in CMDSSolver.hpp does not work.  
+The corresponding code that cannot work has been moved into another branch, namely, failure.  
 There are three places to be fixed:
 1. the implementation of Pool-adjacent violators algorithm;
 2. the parameter settings of initial configuration and iteration step;
