@@ -9,6 +9,9 @@ double** projection = cMDSSolver.getProjection();
 
 ## Failure
 
-I tried to implement nonmetric MDS. However, I failed.
-Thus, the nMDSSolver class does not work.
-The corresponding code that cannot work has been moved into the branch of failure.
+I tried to implement nonmetric MDS. However, I failed. Thus, the nMDSSolver class in CMDSSolver.hpp does not work.  
+There are two places that may be problematic:
+1. the implementation of Pool-adjacent violators algorithm;
+2. the parameter settings of initial configuration and iteration step;
+3. my understanding of isotonic regression.  
+The corresponding code that cannot work has been moved into another branch, namely, failure.
